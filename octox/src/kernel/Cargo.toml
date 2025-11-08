@@ -17,5 +17,3 @@ path = "lib.rs"
 [features]
 default = ["kernel"]
 kernel = []
-
-[dependencies]

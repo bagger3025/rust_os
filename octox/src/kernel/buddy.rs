@@ -5,9 +5,19 @@ use core::alloc::Layout;
 use core::cmp;
 use core::ptr::{self, NonNull};
 
+/// Rounds up the given value to be the multiple of `sz`.
+///
+/// Formally, if the n = a * sz + b, where b is n % sz, return a if b is 0, and
+/// a + 1 otherwise.
+///
+/// `n` should not be zero.
 const fn round_up(n: usize, sz: usize) -> usize {
     (((n - 1) / sz) + 1) * sz
 }
+
+/// Rounds down the gvein value to be the multiple of `sz`.
+///
+/// Formally, if the n = a * sz + b, where b is n % sz, return a.
 const fn round_down(n: usize, sz: usize) -> usize {
     (n / sz) * sz
 }
@@ -41,9 +51,17 @@ trait Array {
 }
 
 impl Array for Option<NonNull<[u8]>> {
+    /// Set bit or clear for the specific index of the array.
+    /// The lower 3 bits of `index` indicate which bit of the value should be
+    /// modified, and the others are about the index of the array.
+    /// If the `set_or_clear` is true, it sets, otherwise, it clears.
+    /// It is expected that the index should exist.
     fn bit_set(&mut self, index: usize, set_or_clear: bool) {
         if let Some(array) = self {
             let m = 1 << (index % 8);
+
+            // SAFETY: as_mut should be okay, because the Self is mutably borrow
+            //         ed
             match (unsafe { array.as_mut() }.get_mut(index / 8), set_or_clear) {
                 (Some(b), true) => *b |= m,
                 (Some(b), false) => *b &= !m,
@@ -51,6 +69,14 @@ impl Array for Option<NonNull<[u8]>> {
             }
         }
     }
+
+    /// It tells whether the specific element of the array has its bit set or
+    /// not.
+    ///
+    /// The lower 3 bits of `index` indicate which bit of the value
+    /// will be checked, and the others are about the index of the array.
+    ///
+    /// If the index of the array does not exist, it returns false.
     fn bit_isset(&self, index: usize) -> bool {
         match self {
             Some(array) => {
@@ -171,9 +197,10 @@ impl BuddyAllocator {
         }
     }
 
-    // Find the size of the block that p points to.
+    /// Find the size of the block that p points to.
     fn size(&self, p: usize) -> usize {
         if let Some(sizes_ptr) = self.sizes {
+            // SAFETY: Self is shared referenced, so others cannot mutably borrow.
             let sizes = unsafe { sizes_ptr.as_ref() };
             for (k, (_, szinfo1)) in sizes.iter().zip(sizes.iter().skip(1)).enumerate() {
                 if szinfo1.split.bit_isset(self.blk_index(k + 1, p)) {
@@ -186,8 +213,7 @@ impl BuddyAllocator {
         }
     }
 
-    // Free memory pointed by p, which earlier allocated using
-    // alloc
+    // Free memory pointed by p, which earlier allocated using alloc
     pub fn dealloc(&mut self, p: *mut u8, _layout: Layout) {
         let mut p = p as usize;
         let mut fk = self.size(p);
@@ -251,9 +277,11 @@ impl BuddyAllocator {
                 // one of the pair is free
                 unsafe {
                     if sizes[k].alloc.bit_isset(bi) {
-                        sizes[k].free.push(self.addr(k, buddy)); // put buddy on free list
+                        // put buddy on free list
+                        sizes[k].free.push(self.addr(k, buddy));
                     } else {
-                        sizes[k].free.push(self.addr(k, bi)); // put bi on free list
+                        // put bi on free list
+                        sizes[k].free.push(self.addr(k, bi));
                     }
                 }
                 Self::blk_size(k)

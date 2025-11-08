@@ -14,6 +14,11 @@ fn main() {
     // build mkfs
     let mkfs_path = build_mkfs(&out_dir);
 
+    if std::env::var("RUST_ANALYZER").is_ok() {
+        println!("cargo:rerun-if-env-changed=RUST_ANALYZER");
+        return;
+    }
+
     // build fs.img
     let fs_img = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
         .join("target")
