@@ -1,0 +1,4 @@
+[language-server.rust-analyzer.config]
+cargo.target = "riscv64gc-unknown-none-elf"
+cargo.buildScripts.invocationStrategy = "once"
+cargo.buildScripts.overrideCommand = ["cargo", "check", "--quiet", "--message-format=json","--target=riscv64gc-unknown-none-elf", "--keep-going"]
