@@ -1,14 +1,19 @@
 #![no_std]
 #![no_main]
 
+mod scheduler;
+
 extern crate alloc;
 
 use core::sync::atomic::{AtomicBool, Ordering};
 use kernel::{
     bio, console, kalloc, kmain, null, plic, println,
-    proc::{self, scheduler, user_init, Cpus},
+    proc::{self, user_init, Cpus},
     trap, virtio_disk, vm,
 };
+use scheduler::round_robin::RoundRobin;
+
+use crate::scheduler::Scheduler;
 
 static STARTED: AtomicBool = AtomicBool::new(false);
 
@@ -43,7 +48,7 @@ extern "C" fn main() -> ! {
         trap::inithart(); // install kernel trap vector
         plic::inithart(); // ask PLIC for device interrupts
     }
-    scheduler()
+    RoundRobin::scheduler();
 }
 
 #[panic_handler]

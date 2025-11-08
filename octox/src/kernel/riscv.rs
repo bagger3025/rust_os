@@ -562,7 +562,7 @@ pub mod registers {
 
 use core::arch::asm;
 
-use registers::*;
+use registers::sstatus;
 
 // enable device interrupts
 #[inline]

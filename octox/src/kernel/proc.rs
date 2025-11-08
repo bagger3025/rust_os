@@ -20,6 +20,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::{boxed::Box, sync::Arc};
 use core::arch::asm;
+use core::iter::repeat_with;
 use core::mem::size_of;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use core::{cell::UnsafeCell, ops::Drop};
@@ -71,10 +72,7 @@ impl Cpus {
     // Return the current proc pointer: Some(Arc<Proc>), or None if none.
     pub fn myproc() -> Option<Arc<Proc>> {
         let _intr_lock = Self::lock_mycpu("withoutspin");
-        let c;
-        unsafe {
-            c = &*CPUS.mycpu();
-        }
+        let c = unsafe { &*CPUS.mycpu() };
         c.proc.clone()
     }
 
@@ -94,9 +92,7 @@ impl Cpu {
             proc: None,
             context: Context::new(),
             noff: 0,
-            nest: [
-                "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-            ],
+            nest: [""; 20],
             intena: false,
         }
     }
@@ -170,19 +166,19 @@ pub struct Context {
 #[derive(Clone, Copy, Default, Debug)]
 #[repr(C, align(4096))]
 pub struct Trapframe {
-    /*   0 */ pub kernel_satp: usize, // kernel page table
-    /*   8 */ pub kernel_sp: usize, // top of process's kernel stack
-    /*  16 */ pub kernel_trap: usize, // usertrap()
-    /*  24 */ pub epc: usize, // saved user program counter
-    /*  32 */ pub kernel_hartid: usize, // saved kernel tp
-    /*  40 */ pub ra: usize,
-    /*  48 */ pub sp: usize,
-    /*  56 */ pub gp: usize,
-    /*  64 */ pub tp: usize,
-    /*  72 */ pub t0: usize,
-    /*  80 */ pub t1: usize,
-    /*  88 */ pub t2: usize,
-    /*  96 */ pub s0: usize,
+    /* 0 */ pub kernel_satp: usize, // kernel page table
+    /* 8 */ pub kernel_sp: usize, // top of process's kernel stack
+    /* 16 */ pub kernel_trap: usize, // usertrap()
+    /* 24 */ pub epc: usize, // saved user program counter
+    /* 32 */ pub kernel_hartid: usize, // saved kernel tp
+    /* 40 */ pub ra: usize,
+    /* 48 */ pub sp: usize,
+    /* 56 */ pub gp: usize,
+    /* 64 */ pub tp: usize,
+    /* 72 */ pub t0: usize,
+    /* 80 */ pub t1: usize,
+    /* 88 */ pub t2: usize,
+    /* 96 */ pub s0: usize,
     /* 104 */ pub s1: usize,
     /* 112 */ pub a0: usize,
     /* 120 */ pub a1: usize,
@@ -318,7 +314,7 @@ impl Procs {
     pub fn new() -> Self {
         let mut i = 0;
         Self {
-            pool: core::iter::repeat_with(|| {
+            pool: repeat_with(|| {
                 let p = Arc::new(Proc::new(i));
                 i += 1;
                 p
@@ -328,7 +324,7 @@ impl Procs {
             .try_into()
             .unwrap(),
             parents: Mutex::new(
-                core::iter::repeat_with(|| None)
+                repeat_with(|| None)
                     .take(NPROC)
                     .collect::<Vec<_>>()
                     .try_into()
@@ -352,47 +348,49 @@ impl Procs {
         }
     }
 
-    // Look in the process table for an UNUSED proc. If found,
-    // initialize state required to run in the kernel, and return
-    // reference to the proc with "proc" lock held. If there are
-    // no free procs, or a memory allocation fails, return None.
+    /// Look in the process table for an UNUSED proc. If found, initialize state
+    /// required to run in the kernel, and return reference to the proc with
+    /// "proc" lock held. If there are no free procs, or a memory allocation
+    /// fails, return None.
     fn alloc(&self) -> Result<(&Arc<Proc>, MutexGuard<'_, ProcInner>)> {
         for p in self.pool.iter() {
             let mut lock = p.inner.lock();
-            match lock.state {
-                ProcState::UNUSED => {
-                    lock.pid = PId::alloc();
-                    lock.state = ProcState::USED;
-
-                    let data = p.data_mut();
-                    // Allocate a trapframe page.
-                    if let Ok(tf) = Box::<Trapframe>::try_new_zeroed() {
-                        data.trapframe.replace(unsafe { tf.assume_init() });
-                    } else {
-                        p.free(lock);
-                        return Err(OutOfMemory);
-                    }
-
-                    // An empty user page table.
-                    match p.uvmcreate() {
-                        Ok(uvm) => {
-                            data.uvm.replace(uvm);
-                        }
-                        Err(err) => {
-                            p.free(lock);
-                            return Err(err);
-                        }
-                    }
-
-                    // Set up new context to start executing at forkret,
-                    // which returns to user space.
-                    data.context.write_zero();
-                    data.context.ra = fork_ret as usize;
-                    data.context.sp = data.kstack.into_usize() + PGSIZE * STACK_PAGE_NUM;
-                    return Ok((p, lock));
-                }
-                _ => continue,
+            if lock.state != ProcState::UNUSED {
+                continue;
             }
+
+            // By the time here, the pool is UNUSED
+            lock.pid = PId::alloc();
+            lock.state = ProcState::USED;
+
+            let data = p.data_mut();
+            // Allocate a trapframe page.
+            if let Ok(tf) = Box::<Trapframe>::try_new_zeroed() {
+                // SAFETY: Trapframe consists of multiple usizes, which can make zeros. So all
+                // fields of the Trapframe are initialized.
+                data.trapframe.replace(unsafe { tf.assume_init() });
+            } else {
+                p.free(lock);
+                return Err(OutOfMemory);
+            }
+
+            // An empty user page table.
+            match p.uvmcreate() {
+                Ok(uvm) => {
+                    data.uvm.replace(uvm);
+                }
+                Err(err) => {
+                    p.free(lock);
+                    return Err(err);
+                }
+            }
+
+            // Set up new context to start executing at forkret,
+            // which returns to user space.
+            data.context.write_zero();
+            data.context.ra = fork_ret as usize;
+            data.context.sp = data.kstack.into_usize() + PGSIZE * STACK_PAGE_NUM;
+            return Ok((p, lock));
         }
         Err(WouldBlock)
     }
@@ -648,39 +646,6 @@ pub fn dump() {
                 "pid: {:?} state: {:?} name: {:?}, chan: {}",
                 inner.pid, inner.state, data.name, inner.chan
             );
-        }
-    }
-}
-
-// Per-CPU process scheduler.
-// Each CPU calls scheduler() after setting itself up.
-// Scheduler never returns. It loops, doing:
-//  - choose a process to run.
-//  - swtch to start running thet process.
-//  - eventually that process transfers control
-//    via swtch back to the scheduler.
-pub fn scheduler() -> ! {
-    let c = unsafe { CPUS.mycpu() };
-
-    loop {
-        // Avoid deadlock by ensuring thet devices can interrupt.
-        intr_on();
-
-        for p in PROCS.pool.iter() {
-            let mut inner = p.inner.lock();
-            if inner.state == ProcState::RUNNABLE {
-                // Switch to chosen process. It is the process's job
-                // to release its lock and then reacquire it
-                // before jumping back to us.
-                inner.state = ProcState::RUNNING;
-                unsafe {
-                    (*c).proc.replace(Arc::clone(p));
-                    swtch(&mut (*c).context, &p.data().context);
-                    // Process is done running for now.
-                    // It should have changed its p->state before coming back.
-                    (*c).proc.take();
-                }
-            }
         }
     }
 }

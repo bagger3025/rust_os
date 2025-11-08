@@ -10,3 +10,4 @@ qemu-system-riscv64 -machine virt -bios none -m 524M -smp 4 -nographic \
 [alias]
 buildr = "build --target riscv64gc-unknown-none-elf"
 runr = "run --target riscv64gc-unknown-none-elf"
+docr = "doc --target riscv64gc-unknown-none-elf"
