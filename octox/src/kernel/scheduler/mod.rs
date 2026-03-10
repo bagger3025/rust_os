@@ -1,3 +1,6 @@
+#[cfg(not(sched_rr))]
+pub mod cfs;
+#[cfg(sched_rr)]
 pub mod round_robin;
 
 trait InstanceScheduler {

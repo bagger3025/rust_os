@@ -11,7 +11,10 @@ use kernel::{
     proc::{self, user_init, Cpus},
     trap, virtio_disk, vm,
 };
-use scheduler::round_robin::RoundRobin;
+#[cfg(sched_rr)]
+use scheduler::round_robin::RoundRobin as ActiveScheduler;
+#[cfg(not(sched_rr))]
+use scheduler::cfs::Cfs as ActiveScheduler;
 
 use crate::scheduler::Scheduler;
 
@@ -48,7 +51,7 @@ extern "C" fn main() -> ! {
         trap::inithart(); // install kernel trap vector
         plic::inithart(); // ask PLIC for device interrupts
     }
-    RoundRobin::scheduler();
+    ActiveScheduler::scheduler();
 }
 
 #[panic_handler]

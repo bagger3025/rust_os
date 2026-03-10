@@ -29,5 +29,10 @@ members = [
 [workspace.dependencies]
 libkernel = { path = "src/kernel", default-features = false }
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(sched_rr)',
+] }
+
 [dependencies]
 libkernel = { workspace = true, features = ["kernel"] }

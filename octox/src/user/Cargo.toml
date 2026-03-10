@@ -82,6 +82,70 @@ path = "bin/touch.rs"
 name = "_jell"
 path = "bin/jell.rs"
 
+[[bin]]
+name = "_benchthruput"
+path = "bin/bench_throughput.rs"
+
+[[bin]]
+name = "_benchfair"
+path = "bin/bench_fairness.rs"
+
+[[bin]]
+name = "_benchlatency"
+path = "bin/bench_latency.rs"
+
+[[bin]]
+name = "_benchiobound"
+path = "bin/bench_iobound.rs"
+
+[[bin]]
+name = "_benchoverhed"
+path = "bin/bench_overhead.rs"
+
+[[bin]]
+name = "_benchcpusym"
+path = "bin/bench_cpusym.rs"
+
+[[bin]]
+name = "_benchsleepw"
+path = "bin/bench_sleepw.rs"
+
+[[bin]]
+name = "_benchnewprc"
+path = "bin/bench_newproc.rs"
+
+[[bin]]
+name = "_benchvdl"
+path = "bin/bench_vdl.rs"
+
+[[bin]]
+name = "_benchepoch"
+path = "bin/bench_epoch.rs"
+
+[[bin]]
+name = "_benchadapt"
+path = "bin/bench_adapt.rs"
+
+[[bin]]
+name = "_benchfairhvy"
+path = "bin/bench_fairhvy.rs"
+
+[[bin]]
+name = "_benchconvoy"
+path = "bin/bench_convoy.rs"
+
+[[bin]]
+name = "_benchstarve"
+path = "bin/bench_starve.rs"
+
+[[bin]]
+name = "_benchiosched"
+path = "bin/bench_iosched.rs"
+
+[[bin]]
+name = "_benchvdlhvy"
+path = "bin/bench_vdlhvy.rs"
+
 [dependencies]
 libkernel = { workspace = true }
 
