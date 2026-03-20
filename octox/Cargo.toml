@@ -32,6 +32,7 @@ libkernel = { path = "src/kernel", default-features = false }
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(sched_rr)',
+    'cfg(sched_mlfq)',
 ] }
 
 [dependencies]

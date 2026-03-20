@@ -1,5 +1,7 @@
-#[cfg(not(sched_rr))]
+#[cfg(not(any(sched_rr, sched_mlfq)))]
 pub mod cfs;
+#[cfg(sched_mlfq)]
+pub mod mlfq;
 #[cfg(sched_rr)]
 pub mod round_robin;
 
