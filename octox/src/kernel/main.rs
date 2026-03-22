@@ -15,7 +15,9 @@ use kernel::{
 use scheduler::round_robin::RoundRobin as ActiveScheduler;
 #[cfg(sched_mlfq)]
 use scheduler::mlfq::Mlfq as ActiveScheduler;
-#[cfg(not(any(sched_rr, sched_mlfq)))]
+#[cfg(sched_o1)]
+use scheduler::o1::O1 as ActiveScheduler;
+#[cfg(not(any(sched_rr, sched_mlfq, sched_o1)))]
 use scheduler::cfs::Cfs as ActiveScheduler;
 
 use crate::scheduler::Scheduler;
