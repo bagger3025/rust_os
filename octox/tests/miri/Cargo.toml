@@ -1,0 +1,12 @@
+[package]
+name = "octox-miri-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# No forced-target — runs on host for Miri analysis.
+# Not part of the octox workspace (excluded in root Cargo.toml).
+
+[workspace]
+
+[dependencies]

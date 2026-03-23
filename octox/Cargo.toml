@@ -34,6 +34,7 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(sched_rr)',
     'cfg(sched_mlfq)',
     'cfg(sched_o1)',
+    'cfg(sched_eevdf)',
 ] }
 
 [dependencies]
