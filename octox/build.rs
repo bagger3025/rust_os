@@ -54,13 +54,16 @@ fn build_uprogs(out_dir: &Path) -> (PathBuf, Vec<PathBuf>) {
     cmd.env_remove("RUSTFLAGS");
     cmd.env_remove("CARGO_ENCODED_RUSTFLAGS");
     cmd.env_remove("RUSTC_WORKSPACE_WRAPPER");
+    let nested_target = out_dir.join("nested-target");
+    cmd.env("CARGO_TARGET_DIR", &nested_target);
     let status = cmd
         .status()
         .expect("failed to run cargo install for uprogs");
     if status.success() {
         let mut ufiles: Vec<PathBuf> = Vec::new();
         let mut collet_files = |dir: &Path, prefix: Option<&str>| {
-            for entry in fs::read_dir(dir).unwrap().filter_map(Result::ok) {
+            let Ok(entries) = fs::read_dir(dir) else { return };
+            for entry in entries.filter_map(Result::ok) {
                 let path = entry.path();
                 if path.is_file() {
                     let should_push = match (prefix, path.file_name().and_then(|s| s.to_str())) {
@@ -102,6 +105,8 @@ fn build_mkfs(out_dir: &Path) -> PathBuf {
     cmd.env_remove("RUSTFLAGS");
     cmd.env_remove("CARGO_ENCODED_RUSTFLAGS");
     cmd.env_remove("RUSTC_WORKSPACE_WRAPPER");
+    let nested_target = out_dir.join("nested-target");
+    cmd.env("CARGO_TARGET_DIR", &nested_target);
     let status = cmd.status().expect("failed to run cargo install for mkfs");
     if status.success() {
         let mut path = out_dir.join("bin").join("mkfs");
