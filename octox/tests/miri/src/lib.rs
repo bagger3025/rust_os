@@ -20,7 +20,7 @@
 // Extracted constants (matching src/kernel/param.rs and scheduler files)
 // ============================================================================
 
-const NPROC: usize = 16;
+const NPROC: usize = 64;
 
 // ---------------------------------------------------------------------------
 // O(1) scheduler helpers (from src/kernel/scheduler/o1.rs)

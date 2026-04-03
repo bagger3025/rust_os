@@ -80,18 +80,18 @@ def test_preemption(qemu):
 
 @test(10, "process cleanup")
 def test_proc_cleanup(qemu):
-    """Processes are recycled beyond NPROC (fork+exit > 16 times)."""
+    """Processes are recycled beyond NPROC (fork+exit > 64 times)."""
     qemu.run_script(["benchthruput"], timeout=180)
     data = parse_bench_output(qemu.output)
     assert "throughput" in data, "No BENCH:throughput output found"
     count = int(data["throughput"][0]["count"])
-    assert count > 16, \
-        "throughput count should exceed NPROC=16 (got %d), proving slot reuse" % count
+    assert count > 64, \
+        "throughput count should exceed NPROC=64 (got %d), proving slot reuse" % count
 
 
 @test(5, "max procs scaling")
 def test_max_procs(qemu):
-    """benchoverhed with n=8 completes (11 procs total < NPROC=16)."""
+    """benchoverhed with n=8 completes within NPROC=64."""
     qemu.run_script(["benchoverhed"], timeout=300)
     data = parse_bench_output(qemu.output)
     assert "overhead" in data, "No BENCH:overhead output found"
