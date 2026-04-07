@@ -4,14 +4,14 @@ use ulib::{print, println, sys};
 
 /// Heavy virtual deadline latency benchmark.
 ///
-/// 12 CPU-bound processes contend for 4 cores (3x oversubscription).
+/// 48 CPU-bound processes contend for 4 cores (12x oversubscription).
 /// Each child tracks the maximum gap (in ticks) between consecutive
 /// scheduling turns. Under heavy load, the gap distribution reveals
 /// the scheduler's worst-case latency guarantees.
 ///
 /// Output: BENCH:vdlhvy:max_gap=<N>:avg_gap_100=<M>:spread=<S>
 fn main() {
-    let num_children: usize = 12;
+    let num_children: usize = 48;
     let duration: usize = 60;
 
     let t_start = sys::uptime().unwrap();

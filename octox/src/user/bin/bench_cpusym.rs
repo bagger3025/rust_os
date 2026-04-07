@@ -16,7 +16,7 @@ use ulib::{print, println, sys};
 ///
 /// Output: BENCH:cpusym:total_work=<N>:min_work=<M>
 fn main() {
-    let num_children: usize = 8;
+    let num_children: usize = 32;
     let duration: usize = 50; // ticks (~5 seconds)
 
     let t_start = sys::uptime().unwrap();

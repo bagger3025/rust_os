@@ -4,15 +4,15 @@ use ulib::{print, println, sys};
 
 /// Starvation resistance benchmark.
 ///
-/// 10 CPU-bound children saturate the system while 2 "probe" children
+/// 40 CPU-bound children saturate the system while 8 "probe" children
 /// alternate between CPU work and brief sleeps. After 80 ticks, we
-/// check that ALL 12 children completed meaningful work. The min/max
+/// check that ALL 48 children completed meaningful work. The min/max
 /// work ratio reveals whether any process was starved.
 ///
-/// Output: BENCH:starve:pid=<P>:count=<C>  (12 lines)
+/// Output: BENCH:starve:pid=<P>:count=<C>  (48 lines)
 fn main() {
-    let num_cpu: usize = 10;
-    let num_probes: usize = 2;
+    let num_cpu: usize = 40;
+    let num_probes: usize = 8;
     let duration: usize = 80;
 
     let t_start = sys::uptime().unwrap();

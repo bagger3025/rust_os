@@ -4,8 +4,8 @@ use ulib::{print, println, sys};
 
 /// Heavy I/O scheduling benchmark.
 ///
-/// 10 CPU workers create 2.5x oversubscription on 4 cores, while
-/// 2 I/O workers repeatedly sleep(1) and measure wakeup overshoot.
+/// 40 CPU workers create 10x oversubscription on 4 cores, while
+/// 8 I/O workers repeatedly sleep(1) and measure wakeup overshoot.
 ///
 /// Unlike the existing iobound benchmark (3 CPU workers = idle cores
 /// available), this scenario guarantees all cores are always busy.
@@ -15,8 +15,8 @@ use ulib::{print, println, sys};
 ///
 /// Output: BENCH:iosched:pid=<P>:wakeup_delay=<D>  (per I/O worker)
 fn main() {
-    let num_cpu: usize = 10;
-    let num_io: usize = 2;
+    let num_cpu: usize = 40;
+    let num_io: usize = 8;
     let io_iterations: usize = 40;
     let sleep_ticks: usize = 1;
 
@@ -24,7 +24,7 @@ fn main() {
     let total_duration: usize = (io_iterations + 5) * (sleep_ticks + 1) + 20;
 
     // Fork CPU-bound workers.
-    let mut cpu_pids: [usize; 10] = [0; 10];
+    let mut cpu_pids: [usize; 40] = [0; 40];
     for i in 0..num_cpu {
         let pid = sys::fork().unwrap();
         if pid == 0 {

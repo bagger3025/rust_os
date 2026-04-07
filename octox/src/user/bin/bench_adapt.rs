@@ -4,9 +4,9 @@ use ulib::{print, println, sys};
 
 /// Adaptive workload phase-change benchmark.
 ///
-/// Scenario: 6 processes run in two phases:
-///   Phase 1 (0–30 ticks): All 6 are CPU-bound.
-///   Phase 2 (30–70 ticks): Children 0–2 stay CPU-bound, children 3–5
+/// Scenario: 32 processes run in two phases:
+///   Phase 1 (0–30 ticks): All 32 are CPU-bound.
+///   Phase 2 (30–70 ticks): Children 0–15 stay CPU-bound, children 16–31
 ///   switch to I/O-bound (sleep + measure wakeup delay).
 ///
 /// This tests whether the scheduler can adapt to a changing workload.
@@ -21,8 +21,8 @@ use ulib::{print, println, sys};
 ///   BENCH:adapt:phase2_delay=<N>    — total wakeup delay in phase 2
 ///   BENCH:adapt:phase2_work=<N>     — CPU work in phase 2 (batch children)
 fn main() {
-    let num_cpu: usize = 3;
-    let num_io: usize = 3;
+    let num_cpu: usize = 16;
+    let num_io: usize = 16;
     let phase1_ticks: usize = 30;
     let phase2_ticks: usize = 40;
     let sleep_per_io: usize = 2;
@@ -32,8 +32,8 @@ fn main() {
     let phase2_start = t_start + phase1_ticks;
     let total_end = t_start + phase1_ticks + phase2_ticks;
 
-    // Fork CPU-bound children (0-2): run both phases CPU-bound.
-    let mut cpu_pids: [usize; 3] = [0; 3];
+    // Fork CPU-bound children (0-15): run both phases CPU-bound.
+    let mut cpu_pids: [usize; 16] = [0; 16];
     for i in 0..num_cpu {
         let pid = sys::fork().unwrap();
         if pid == 0 {
@@ -63,8 +63,8 @@ fn main() {
         cpu_pids[i] = pid;
     }
 
-    // Fork I/O-bound children (3-5): CPU-bound in phase 1, I/O in phase 2.
-    let mut io_pids: [usize; 3] = [0; 3];
+    // Fork I/O-bound children (16-31): CPU-bound in phase 1, I/O in phase 2.
+    let mut io_pids: [usize; 16] = [0; 16];
     for i in 0..num_io {
         let pid = sys::fork().unwrap();
         if pid == 0 {

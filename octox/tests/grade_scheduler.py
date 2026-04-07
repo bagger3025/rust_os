@@ -91,19 +91,19 @@ def test_proc_cleanup(qemu):
 
 @test(5, "max procs scaling")
 def test_max_procs(qemu):
-    """benchoverhed with n=8 completes within NPROC=64."""
+    """benchoverhed with n=48 completes within NPROC=64."""
     qemu.run_script(["benchoverhed"], timeout=300)
     data = parse_bench_output(qemu.output)
     assert "overhead" in data, "No BENCH:overhead output found"
-    # Check that n=8 entries exist
-    n8_entries = [e for e in data["overhead"] if e.get("n") == "8"]
-    assert len(n8_entries) == 8, \
-        "Expected 8 entries for n=8, got %d" % len(n8_entries)
+    # Check that n=48 entries exist
+    n48_entries = [e for e in data["overhead"] if e.get("n") == "48"]
+    assert len(n48_entries) == 48, \
+        "Expected 48 entries for n=48, got %d" % len(n48_entries)
 
 
 @test(5, "symmetric CPU-bound")
 def test_cpusym(qemu):
-    """benchcpusym: 8 CPU-bound children complete and report total work."""
+    """benchcpusym: 32 CPU-bound children complete and report total work."""
     qemu.run_script(["benchcpusym"], timeout=180)
     data = parse_bench_output(qemu.output)
     assert "cpusym" in data, "No BENCH:cpusym output found"
@@ -167,12 +167,12 @@ def test_adapt(qemu):
 
 @test(5, "heavy fairness")
 def test_fairhvy(qemu):
-    """benchfairhvy: 12 CPU-bound children complete with non-zero work."""
+    """benchfairhvy: 48 CPU-bound children complete with non-zero work."""
     qemu.run_script(["benchfairhvy"], timeout=300)
     data = parse_bench_output(qemu.output)
     assert "fairhvy" in data, "No BENCH:fairhvy output found"
     entries = data["fairhvy"]
-    assert len(entries) == 12, "Expected 12 fairhvy entries, got %d" % len(entries)
+    assert len(entries) == 48, "Expected 48 fairhvy entries, got %d" % len(entries)
     for e in entries:
         c = int(e["count"])
         assert c > 0, "fairhvy count must be > 0 for pid=%s" % e.get("pid")
@@ -190,12 +190,12 @@ def test_convoy(qemu):
 
 @test(5, "starvation resistance")
 def test_starve(qemu):
-    """benchstarve: all 12 processes complete with non-zero work."""
+    """benchstarve: all 48 processes complete with non-zero work."""
     qemu.run_script(["benchstarve"], timeout=300)
     data = parse_bench_output(qemu.output)
     assert "starve" in data, "No BENCH:starve output found"
     entries = data["starve"]
-    assert len(entries) == 12, "Expected 12 starve entries, got %d" % len(entries)
+    assert len(entries) == 48, "Expected 48 starve entries, got %d" % len(entries)
     for e in entries:
         c = int(e["count"])
         assert c > 0, "starve count must be > 0 for pid=%s" % e.get("pid")
@@ -207,13 +207,13 @@ def test_iosched(qemu):
     qemu.run_script(["benchiosched"], timeout=300)
     data = parse_bench_output(qemu.output)
     assert "iosched" in data, "No BENCH:iosched output found"
-    assert len(data["iosched"]) >= 2, \
-        "Expected >= 2 iosched entries, got %d" % len(data["iosched"])
+    assert len(data["iosched"]) >= 8, \
+        "Expected >= 8 iosched entries, got %d" % len(data["iosched"])
 
 
 @test(5, "heavy tail latency")
 def test_vdlhvy(qemu):
-    """benchvdlhvy: 12 CPU-bound children report scheduling gaps."""
+    """benchvdlhvy: 48 CPU-bound children report scheduling gaps."""
     qemu.run_script(["benchvdlhvy"], timeout=300)
     data = parse_bench_output(qemu.output)
     assert "vdlhvy" in data, "No BENCH:vdlhvy output found"
@@ -320,10 +320,10 @@ def benchoverhed(qemu, sched):
         total = sum(by_n[n])
         metrics["overhead total work n=%d" % n] = total
 
-    # Compute ratio: n=8 total / n=1 total  (lower overhead = ratio closer to 1)
-    if 1 in by_n and 8 in by_n:
-        r = sum(by_n[8]) / max(sum(by_n[1]), 1)
-        metrics["overhead scaling ratio n8/n1 (lower=better)"] = r
+    # Compute ratio: n=48 total / n=1 total  (lower overhead = ratio closer to 1)
+    if 1 in by_n and 48 in by_n:
+        r = sum(by_n[48]) / max(sum(by_n[1]), 1)
+        metrics["overhead scaling ratio n48/n1 (lower=better)"] = r
 
     return metrics
 
@@ -437,7 +437,7 @@ def benchadapt(qemu, sched):
 
 @benchmark("fairhvy (heavy fairness)")
 def benchfairhvy(qemu, sched):
-    """Heavy fairness: 12 CPU-bound on 4 cores (3x oversubscription).
+    """Heavy fairness: 48 CPU-bound on 4 cores (12x oversubscription).
     CFS/EEVDF should win: vruntime tracking guarantees proportional CPU."""
     qemu.run_script(["benchfairhvy"], timeout=300)
     data = parse_bench_output(qemu.output)
@@ -477,7 +477,7 @@ def benchconvoy(qemu, sched):
 
 @benchmark("starve (starvation)")
 def benchstarve(qemu, sched):
-    """Starvation resistance: min/max work ratio across 12 processes.
+    """Starvation resistance: min/max work ratio across 48 processes.
     CFS/EEVDF should win: proportional fair share prevents starvation."""
     qemu.run_script(["benchstarve"], timeout=300)
     data = parse_bench_output(qemu.output)
@@ -497,7 +497,7 @@ def benchstarve(qemu, sched):
 
 @benchmark("iosched (heavy IO →CFS)")
 def benchiosched(qemu, sched):
-    """Heavy I/O: 2 sleepers vs 10 CPU workers (2.5x oversubscription).
+    """Heavy I/O: 8 sleepers vs 40 CPU workers (10x oversubscription).
     CFS should win: SLEEPER_BONUS gives wakers immediate priority."""
     qemu.run_script(["benchiosched"], timeout=300)
     data = parse_bench_output(qemu.output)
@@ -516,7 +516,7 @@ def benchiosched(qemu, sched):
 
 @benchmark("vdlhvy (heavy VDL →EEVDF)")
 def benchvdlhvy(qemu, sched):
-    """Heavy tail latency: 12 processes max scheduling gap.
+    """Heavy tail latency: 48 processes max scheduling gap.
     EEVDF should win: eligibility + deadlines bound worst-case gap."""
     qemu.run_script(["benchvdlhvy"], timeout=300)
     data = parse_bench_output(qemu.output)

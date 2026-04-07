@@ -3,13 +3,13 @@ extern crate alloc;
 use ulib::{print, println, sys};
 
 /// Context switch overhead benchmark.
-/// For each concurrency level N in [1, 2, 4, 8], forks N CPU-bound
+/// For each concurrency level N in [1, 2, 4, 8, 16, 32, 48], forks N CPU-bound
 /// children that count iterations for a fixed duration. Children exit
 /// with (count / 1000) as status. Parent prints results sequentially.
 /// Output: BENCH:overhead:n=<N>:pid=<P>:count=<C>
 fn main() {
-    let levels: [usize; 4] = [1, 2, 4, 8];
-    let duration: usize = 50;
+    let levels: [usize; 7] = [1, 2, 4, 8, 16, 32, 48];
+    let duration: usize = 10;
 
     for &n in levels.iter() {
         let t_start = sys::uptime().unwrap();

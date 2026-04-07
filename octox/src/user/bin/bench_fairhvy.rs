@@ -2,15 +2,15 @@
 extern crate alloc;
 use ulib::{print, println, sys};
 
-/// Heavy fairness benchmark: 12 CPU-bound on 4 cores (3x oversubscription).
+/// Heavy fairness benchmark: 48 CPU-bound on 4 cores (12x oversubscription).
 ///
 /// With only 4 children (existing benchfair), all schedulers look fair
-/// because each child often gets its own core. At 12 children (3 per
+/// because each child often gets its own core. At 48 children (12 per
 /// core), the scheduling policy must actively distribute CPU time.
 ///
-/// Output: BENCH:fairhvy:pid=<P>:count=<C>  (12 lines)
+/// Output: BENCH:fairhvy:pid=<P>:count=<C>  (48 lines)
 fn main() {
-    let num_children: usize = 12;
+    let num_children: usize = 48;
     let duration: usize = 80;
 
     let t_start = sys::uptime().unwrap();
