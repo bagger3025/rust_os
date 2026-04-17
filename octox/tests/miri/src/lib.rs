@@ -1,6 +1,7 @@
 // ============================================================================
 // Miri UB tests for Octox scheduler algorithms
 // ============================================================================
+#![allow(dead_code)]
 //
 // The kernel crate targets riscv64gc-unknown-none-elf and cannot be compiled
 // for the host, so this standalone crate extracts the *pure algorithmic* parts
@@ -94,6 +95,74 @@ const NUM_LEVELS: usize = 3;
 const TIME_ALLOTMENT: [u64; NUM_LEVELS] = [1, 2, 4];
 const BOOST_INTERVAL: u64 = 100;
 
+// ---------------------------------------------------------------------------
+// DRL helpers (from src/kernel/scheduler/drl.rs)
+// ---------------------------------------------------------------------------
+
+const DRL_NUM_FEATURES: usize = 4;
+const DRL_HIDDEN_SIZE: usize = 8;
+const DRL_SCALE: i64 = 1024;
+const DRL_PERTURB_MAG: i64 = 24;
+
+type DrlW1 = [[i64; DRL_NUM_FEATURES]; DRL_HIDDEN_SIZE];
+type DrlB1 = [i64; DRL_HIDDEN_SIZE];
+type DrlW2 = [i64; DRL_HIDDEN_SIZE];
+
+fn drl_warm_start_weights() -> (DrlW1, DrlB1, DrlW2, i64) {
+    let mut w1 = [[0; DRL_NUM_FEATURES]; DRL_HIDDEN_SIZE];
+    w1[0] = [768, 256, 256, 0];
+    w1[1] = [256, 768, 0, 0];
+    w1[2] = [128, 0, 512, 0];
+
+    let b1 = [0; DRL_HIDDEN_SIZE];
+    let mut w2 = [0; DRL_HIDDEN_SIZE];
+    w2[0] = 512;
+    w2[1] = 384;
+    w2[2] = 256;
+
+    (w1, b1, w2, 0)
+}
+
+fn drl_forward(w1: &DrlW1, b1: &DrlB1, w2: &DrlW2, b2: i64, f: &[i64; 4]) -> i64 {
+    let mut hidden = [0i64; DRL_HIDDEN_SIZE];
+    for j in 0..DRL_HIDDEN_SIZE {
+        let mut sum = b1[j];
+        for (k, value) in f.iter().enumerate() {
+            sum = sum.saturating_add(w1[j][k].saturating_mul(*value) / DRL_SCALE);
+        }
+        hidden[j] = sum.max(0);
+    }
+
+    let mut score = b2;
+    for j in 0..DRL_HIDDEN_SIZE {
+        score = score.saturating_add(w2[j].saturating_mul(hidden[j]) / DRL_SCALE);
+    }
+    score
+}
+
+fn drl_xorshift(rng: &mut u64) -> u64 {
+    let mut x = *rng;
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    *rng = x.max(1);
+    *rng
+}
+
+fn drl_rand_perturb(rng: &mut u64) -> i64 {
+    (drl_xorshift(rng) % (DRL_PERTURB_MAG as u64 * 2 + 1)) as i64 - DRL_PERTURB_MAG
+}
+
+fn drl_reward(dispatches: u64, max_wait: u64, dispatch_mask: u64) -> i64 {
+    let throughput_score = if max_wait == 0 {
+        dispatches as i64 * DRL_SCALE
+    } else {
+        dispatches as i64 * DRL_SCALE / max_wait as i64
+    };
+    let fairness_bonus = dispatch_mask.count_ones() as i64 * DRL_SCALE / NPROC as i64;
+    throughput_score + fairness_bonus
+}
+
 // ============================================================================
 // TESTS
 // ============================================================================
@@ -116,6 +185,127 @@ mod tests {
         // sleep_avg > MAX_SLEEP_AVG → clamped to MAX_BONUS
         assert_eq!(o1_calc_priority(100), BASE_PRIORITY - MAX_BONUS);
         assert_eq!(o1_calc_priority(u64::MAX), BASE_PRIORITY - MAX_BONUS);
+    }
+
+    // ====================================================================
+    //  DRL Tests
+    // ====================================================================
+
+    #[test]
+    fn drl_forward_warm_start_reasonable() {
+        let (w1, b1, w2, b2) = drl_warm_start_weights();
+        let low_wait = [0, DRL_SCALE / 2, 0, DRL_SCALE / 2];
+        let high_wait = [DRL_SCALE, DRL_SCALE / 2, 0, DRL_SCALE / 2];
+
+        let low = drl_forward(&w1, &b1, &w2, b2, &low_wait);
+        let high = drl_forward(&w1, &b1, &w2, b2, &high_wait);
+
+        assert!(high > low, "high-wait process should score higher");
+    }
+
+    #[test]
+    fn drl_forward_relu_zeros_negatives() {
+        let w1 = [[-1024; DRL_NUM_FEATURES]; DRL_HIDDEN_SIZE];
+        let b1 = [-1; DRL_HIDDEN_SIZE];
+        let w2 = [1024; DRL_HIDDEN_SIZE];
+        let b2 = 17;
+        let f = [DRL_SCALE; DRL_NUM_FEATURES];
+
+        assert_eq!(drl_forward(&w1, &b1, &w2, b2, &f), b2);
+    }
+
+    #[test]
+    fn drl_forward_features_in_range() {
+        let (w1, b1, w2, b2) = drl_warm_start_weights();
+        for wait in [0, DRL_SCALE / 2, DRL_SCALE] {
+            for deficit in [0, DRL_SCALE / 2, DRL_SCALE] {
+                for io in [0, DRL_SCALE] {
+                    let f = [wait, deficit, io, DRL_SCALE / 2];
+                    let _ = drl_forward(&w1, &b1, &w2, b2, &f);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn drl_xorshift_nonzero_nonrepeating() {
+        let mut rng = 0xDEAD_BEEF_0000_1337;
+        let mut values = std::collections::BTreeSet::new();
+        for _ in 0..1000 {
+            let value = drl_xorshift(&mut rng);
+            assert_ne!(value, 0);
+            assert!(values.insert(value), "xorshift repeated too early");
+        }
+    }
+
+    #[test]
+    fn drl_rand_perturb_range() {
+        let mut rng = 0xCAFE_BABE_0000_1234;
+        for _ in 0..10_000 {
+            let p = drl_rand_perturb(&mut rng);
+            assert!(
+                (-DRL_PERTURB_MAG..=DRL_PERTURB_MAG).contains(&p),
+                "perturbation out of range: {p}"
+            );
+        }
+    }
+
+    #[test]
+    fn drl_perturbation_revert_recovers_weights() {
+        let (mut w1, mut b1, mut w2, mut b2) = drl_warm_start_weights();
+        let orig = (w1, b1, w2, b2);
+        let mut rng = 0x1234_5678_9ABC_DEF0;
+        let mut pw1 = [[0; DRL_NUM_FEATURES]; DRL_HIDDEN_SIZE];
+        let mut pb1 = [0; DRL_HIDDEN_SIZE];
+        let mut pw2 = [0; DRL_HIDDEN_SIZE];
+        let pb2;
+
+        for j in 0..DRL_HIDDEN_SIZE {
+            for k in 0..DRL_NUM_FEATURES {
+                let d = drl_rand_perturb(&mut rng);
+                pw1[j][k] = d;
+                w1[j][k] += d;
+            }
+            let bd = drl_rand_perturb(&mut rng);
+            pb1[j] = bd;
+            b1[j] += bd;
+            let wd = drl_rand_perturb(&mut rng);
+            pw2[j] = wd;
+            w2[j] += wd;
+        }
+        pb2 = drl_rand_perturb(&mut rng);
+        b2 += pb2;
+
+        for j in 0..DRL_HIDDEN_SIZE {
+            for k in 0..DRL_NUM_FEATURES {
+                w1[j][k] -= pw1[j][k];
+            }
+            b1[j] -= pb1[j];
+            w2[j] -= pw2[j];
+        }
+        b2 -= pb2;
+
+        assert_eq!((w1, b1, w2, b2), orig);
+    }
+
+    #[test]
+    fn drl_reward_monotonicity() {
+        let mask = 0b1111;
+        let base = drl_reward(10, 10, mask);
+        let more_dispatches = drl_reward(20, 10, mask);
+        let lower_wait = drl_reward(10, 5, mask);
+
+        assert!(more_dispatches > base);
+        assert!(lower_wait > base);
+    }
+
+    #[test]
+    fn drl_dispatch_mask_popcount() {
+        let mut mask = 0u64;
+        for i in [0, 3, 7, 31, 63] {
+            mask |= 1u64 << i;
+        }
+        assert_eq!(mask.count_ones(), 5);
     }
 
     #[test]
@@ -776,7 +966,7 @@ mod tests {
         let mut deadlines: Vec<u64> = (0..n).map(|i| i as u64 * 3 + 3).collect();
         let mut dispatch_counts = vec![0u32; n];
 
-        for round in 0..100 {
+        for _round in 0..100 {
             // Compute avg_vrt.
             let sum: u64 = vruntimes.iter().sum();
             let avg = sum / n as u64;

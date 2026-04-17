@@ -29,9 +29,9 @@ QEMUOPTS := -machine virt -bios none -m 524M -smp 4 -nographic \
 # ── Build ───────────────────────────────────────────────────────────
 
 .PHONY: all build clean qemu test bench grade \
-	test-cfs test-rr test-mlfq test-o1 test-eevdf \
-	bench-cfs bench-rr bench-mlfq bench-o1 bench-eevdf \
-	grade-cfs grade-rr grade-mlfq grade-o1 grade-eevdf
+	test-cfs test-rr test-mlfq test-o1 test-eevdf test-drl \
+	bench-cfs bench-rr bench-mlfq bench-o1 bench-eevdf bench-drl \
+	grade-cfs grade-rr grade-mlfq grade-o1 grade-eevdf grade-drl
 
 all: grade
 
@@ -122,3 +122,14 @@ grade-eevdf: build
 	@pkill -9 -f $(QEMU) 2>/dev/null || true
 	$(PYTHON) $(GRADE) --scheduler eevdf --timeout $(TIMEOUT) $(GRADE_FLAGS)
 
+test-drl: build
+	@pkill -9 -f $(QEMU) 2>/dev/null || true
+	$(PYTHON) $(GRADE) --mode test --scheduler drl --timeout $(TIMEOUT) $(GRADE_FLAGS)
+
+bench-drl: build
+	@pkill -9 -f $(QEMU) 2>/dev/null || true
+	$(PYTHON) $(GRADE) --mode bench --scheduler drl --timeout $(TIMEOUT) $(GRADE_FLAGS)
+
+grade-drl: build
+	@pkill -9 -f $(QEMU) 2>/dev/null || true
+	$(PYTHON) $(GRADE) --scheduler drl --timeout $(TIMEOUT) $(GRADE_FLAGS)

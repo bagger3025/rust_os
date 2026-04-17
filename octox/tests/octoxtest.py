@@ -48,7 +48,7 @@ class OctoxBuilder:
         #[cfg(sched_rr)]
         use scheduler::round_robin::RoundRobin as ActiveScheduler;
         ...
-        #[cfg(not(any(sched_rr, sched_mlfq, sched_o1, sched_eevdf)))]
+        #[cfg(not(any(sched_rr, sched_mlfq, sched_o1, sched_eevdf, sched_drl)))]
         use scheduler::cfs::Cfs as ActiveScheduler;
 
     No source code patching is needed — only compile flags change.
@@ -61,6 +61,7 @@ class OctoxBuilder:
         "mlfq":  "sched_mlfq",
         "o1":    "sched_o1",
         "eevdf": "sched_eevdf",
+        "drl":   "sched_drl",
     }
 
     MAIN_RS = "src/kernel/main.rs"
@@ -346,7 +347,7 @@ def run_all():
                       help="print QEMU commands and full output")
     parser.add_option("--color", choices=["never", "always", "auto"],
                       default="auto")
-    parser.add_option("--scheduler", choices=["rr", "cfs", "mlfq", "o1", "eevdf", "all"],
+    parser.add_option("--scheduler", choices=["rr", "cfs", "mlfq", "o1", "eevdf", "drl", "all"],
                       default="all",
                       help="which scheduler(s) to test (default: all)")
     parser.add_option("--mode", choices=["test", "bench", "all"],
@@ -363,12 +364,13 @@ def run_all():
     builder = OctoxBuilder(release=getattr(options, 'release', False))
 
     schedulers = {
-        "all":  ["cfs", "rr", "mlfq", "o1", "eevdf"],
+        "all":  ["cfs", "rr", "mlfq", "o1", "eevdf", "drl"],
         "cfs":  ["cfs"],
         "rr":   ["rr"],
         "mlfq": ["mlfq"],
         "o1":   ["o1"],
         "eevdf": ["eevdf"],
+        "drl": ["drl"],
     }[options.scheduler]
 
     bench_results = {}  # scheduler -> { metric: value }

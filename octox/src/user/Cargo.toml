@@ -127,6 +127,10 @@ name = "_benchadapt"
 path = "bin/bench_adapt.rs"
 
 [[bin]]
+name = "_benchadaptrev"
+path = "bin/bench_adapt_rev.rs"
+
+[[bin]]
 name = "_benchfairhvy"
 path = "bin/bench_fairhvy.rs"
 

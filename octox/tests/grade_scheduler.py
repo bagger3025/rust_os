@@ -165,6 +165,18 @@ def test_adapt(qemu):
     assert phase2_work > 0, "phase2_work must be > 0"
 
 
+@test(5, "reverse adaptive workload")
+def test_adaptrev(qemu):
+    """benchadaptrev: I/O-to-CPU phase-changing workload completes."""
+    qemu.run_script(["benchadaptrev"], timeout=300)
+    data = parse_bench_output(qemu.output)
+    assert "adaptrev" in data, "No BENCH:adaptrev output found"
+    assert "phase2_work" in data["adaptrev"][0], "Missing phase2_work field"
+    assert "min_work" in data["adaptrev"][0], "Missing min_work field"
+    phase2_work = int(data["adaptrev"][0]["phase2_work"])
+    assert phase2_work > 0, "adaptrev phase2_work must be > 0"
+
+
 @test(5, "heavy fairness")
 def test_fairhvy(qemu):
     """benchfairhvy: 48 CPU-bound children complete with non-zero work."""
@@ -427,6 +439,24 @@ def benchadapt(qemu, sched):
     return {
         "adapt phase2 delay (lower=better)": p2_delay,
         "adapt phase2 cpu work": p2_work,
+    }
+
+
+@benchmark("adaptrev")
+def benchadaptrev(qemu, sched):
+    """Reverse adaptive workload phase change — tests throughput recovery."""
+    qemu.run_script(["benchadaptrev"], timeout=300)
+    data = parse_bench_output(qemu.output)
+    if "adaptrev" not in data:
+        return {}
+    p1_delay = float(data["adaptrev"][0]["phase1_delay"])
+    p2_work = float(data["adaptrev"][0]["phase2_work"])
+    min_work = float(data["adaptrev"][0]["min_work"])
+    max_work = float(data["adaptrev"][0]["max_work"])
+    return {
+        "adaptrev phase1 delay": p1_delay,
+        "adaptrev phase2 cpu work": p2_work,
+        "adaptrev min/max work": min_work / max_work if max_work > 0 else 0,
     }
 
 
