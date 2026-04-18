@@ -46,7 +46,7 @@ fn build_uprogs(out_dir: &Path) -> (PathBuf, Vec<PathBuf>) {
     if local_path.exists() {
         // local build
         cmd.arg("--path").arg(&local_path);
-        println!("cargo:rerun-if-changed={}", local_path.display());
+        print_rerun_if_changed_recursive(&local_path);
     }
     cmd.arg("--root").arg(out_dir);
     cmd.arg("-vv");
@@ -82,9 +82,23 @@ fn build_uprogs(out_dir: &Path) -> (PathBuf, Vec<PathBuf>) {
             let path = out_dir.join(dir_ent);
             collet_files(&path, Some("_"));
         }
+        collet_files(&local_path.join("etc"), Some("_"));
         (local_path, ufiles)
     } else {
         panic!("failed to build user programs");
+    }
+}
+
+fn print_rerun_if_changed_recursive(path: &Path) {
+    println!("cargo:rerun-if-changed={}", path.display());
+    let Ok(entries) = fs::read_dir(path) else { return };
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        if path.is_dir() {
+            print_rerun_if_changed_recursive(&path);
+        } else {
+            println!("cargo:rerun-if-changed={}", path.display());
+        }
     }
 }
 

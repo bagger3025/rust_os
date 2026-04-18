@@ -8,7 +8,7 @@ use ulib::{print, println, sys};
 /// process repeatedly sleeps and measures its wakeup delay. This directly
 /// tests whether the scheduler gives priority to recently-woken processes.
 ///
-/// Output: BENCH:sleepw:avg_delay=<N>:max_delay=<M>
+/// Output: BENCH:sleepw:avg_delay=<N>:p95_delay=<P>:p99_delay=<Q>:max_delay=<M>
 fn main() {
     let num_workers: usize = 6;
     let num_iterations: usize = 30;
@@ -37,35 +37,51 @@ fn main() {
     if pid == 0 {
         let mut total_delay: usize = 0;
         let mut max_delay: usize = 0;
-        for _ in 0..num_iterations {
+        let mut delays: [usize; 30] = [0; 30];
+        for i in 0..num_iterations {
             let before = sys::uptime().unwrap();
             sys::sleep(sleep_ticks).unwrap();
             let after = sys::uptime().unwrap();
             let actual = after - before;
             if actual > sleep_ticks {
                 let delay = actual - sleep_ticks;
+                delays[i] = delay;
                 total_delay += delay;
                 if delay > max_delay {
                     max_delay = delay;
                 }
             }
         }
-        // Pack avg_delay and max_delay into exit status
-        // avg in upper bits, max in lower 8 bits
+        for i in 1..num_iterations {
+            let mut j = i;
+            while j > 0 && delays[j - 1] > delays[j] {
+                delays.swap(j - 1, j);
+                j -= 1;
+            }
+        }
         let avg = total_delay / num_iterations.max(1);
-        let code = ((avg & 0xFF) << 8) | (max_delay & 0xFF);
+        let p95 = delays[(num_iterations * 95 / 100).min(num_iterations - 1)];
+        let p99 = delays[(num_iterations * 99 / 100).min(num_iterations - 1)];
+        // Pack four 7-bit fields while keeping the sign bit clear.
+        let code = ((avg.min(0x7F) & 0x7F) << 21)
+            | ((p95.min(0x7F) & 0x7F) << 14)
+            | ((p99.min(0x7F) & 0x7F) << 7)
+            | (max_delay.min(0x7F) & 0x7F);
         sys::exit(code as i32);
     }
 
     // Wait for sleeper
     let mut status: i32 = 0;
     sys::wait(&mut status).unwrap();
-    let avg_delay = (status as usize >> 8) & 0xFF;
-    let max_delay = status as usize & 0xFF;
+    let code = status as usize;
+    let avg_delay = (code >> 21) & 0x7F;
+    let p95_delay = (code >> 14) & 0x7F;
+    let p99_delay = (code >> 7) & 0x7F;
+    let max_delay = code & 0x7F;
 
     println!(
-        "BENCH:sleepw:avg_delay={}:max_delay={}",
-        avg_delay, max_delay
+        "BENCH:sleepw:avg_delay={}:p95_delay={}:p99_delay={}:max_delay={}",
+        avg_delay, p95_delay, p99_delay, max_delay
     );
 
     // Kill workers and wait.

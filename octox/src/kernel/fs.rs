@@ -972,7 +972,7 @@ impl Path {
         match self.inner.trim_matches('/').split_once('/') {
             Some((name, path)) if name.len() <= DIRSIZ => (Some(name), Some(Path::new(path))),
             None if !self.inner.trim_matches('/').is_empty()
-                && self.inner.trim_matches('/').len() < DIRSIZ =>
+                && self.inner.trim_matches('/').len() <= DIRSIZ =>
             {
                 (Some(self.inner.trim_matches('/')), None)
             }

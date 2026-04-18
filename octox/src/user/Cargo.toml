@@ -150,6 +150,22 @@ path = "bin/bench_iosched.rs"
 name = "_benchvdlhvy"
 path = "bin/bench_vdlhvy.rs"
 
+[[bin]]
+name = "_benchmaxproc"
+path = "bin/bench_maxproc.rs"
+
+[[bin]]
+name = "_benchburst"
+path = "bin/bench_burst.rs"
+
+[[bin]]
+name = "_benchphaseflip"
+path = "bin/bench_phaseflip.rs"
+
+[[bin]]
+name = "_benchstarveio"
+path = "bin/bench_starve_io.rs"
+
 [dependencies]
 libkernel = { workspace = true }
 

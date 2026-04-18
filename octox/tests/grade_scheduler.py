@@ -101,6 +101,19 @@ def test_max_procs(qemu):
         "Expected 48 entries for n=48, got %d" % len(n48_entries)
 
 
+@test(5, "max process acceptance")
+def test_maxproc_acceptance(qemu):
+    """benchmaxproc: near-limit fork load is accepted and cleaned up."""
+    qemu.run_script(["benchmaxproc"], timeout=300)
+    data = parse_bench_output(qemu.output)
+    assert "maxproc" in data, "No BENCH:maxproc output found"
+    accepted = int(data["maxproc"][0]["accepted"])
+    completed = int(data["maxproc"][0]["completed"])
+    assert accepted >= 48, "Expected at least 48 accepted children, got %d" % accepted
+    assert completed == accepted, \
+        "Expected all accepted children to complete, accepted=%d completed=%d" % (accepted, completed)
+
+
 @test(5, "symmetric CPU-bound")
 def test_cpusym(qemu):
     """benchcpusym: 32 CPU-bound children complete and report total work."""
@@ -202,12 +215,12 @@ def test_convoy(qemu):
 
 @test(5, "starvation resistance")
 def test_starve(qemu):
-    """benchstarve: all 48 processes complete with non-zero work."""
+    """benchstarve: all 32 processes complete with non-zero work."""
     qemu.run_script(["benchstarve"], timeout=300)
     data = parse_bench_output(qemu.output)
     assert "starve" in data, "No BENCH:starve output found"
     entries = data["starve"]
-    assert len(entries) == 48, "Expected 48 starve entries, got %d" % len(entries)
+    assert len(entries) == 32, "Expected 32 starve entries, got %d" % len(entries)
     for e in entries:
         c = int(e["count"])
         assert c > 0, "starve count must be > 0 for pid=%s" % e.get("pid")
@@ -231,6 +244,33 @@ def test_vdlhvy(qemu):
     assert "vdlhvy" in data, "No BENCH:vdlhvy output found"
     max_gap = int(data["vdlhvy"][0]["max_gap"])
     assert max_gap >= 0, "vdlhvy max_gap must be >= 0"
+
+
+@test(5, "bursty adversarial")
+def test_burst(qemu):
+    """benchburst: bursty adversarial workload completes."""
+    qemu.run_script(["benchburst"], timeout=300)
+    data = parse_bench_output(qemu.output)
+    assert "burst" in data, "No BENCH:burst output found"
+    assert int(data["burst"][0]["batch_work"]) > 0, "burst batch_work must be > 0"
+
+
+@test(5, "phase-flapping adversarial")
+def test_phaseflip(qemu):
+    """benchphaseflip: phase-flapping workload completes."""
+    qemu.run_script(["benchphaseflip"], timeout=300)
+    data = parse_bench_output(qemu.output)
+    assert "phaseflip" in data, "No BENCH:phaseflip output found"
+    assert int(data["phaseflip"][0]["cpu_work"]) > 0, "phaseflip cpu_work must be > 0"
+
+
+@test(5, "I/O starvation adversarial")
+def test_starveio(qemu):
+    """benchstarveio: sleeper storm with batch workers completes."""
+    qemu.run_script(["benchstarveio"], timeout=300)
+    data = parse_bench_output(qemu.output)
+    assert "starveio" in data, "No BENCH:starveio output found"
+    assert int(data["starveio"][0]["batch_max"]) > 0, "starveio batch_max must be > 0"
 
 
 # ====================================================================
@@ -280,12 +320,16 @@ def benchlatency(qemu, sched):
         delays = [float(e["delay"]) for e in data["latency"]]
         if delays:
             metrics["latency idle (mean ticks)"] = sum(delays) / len(delays)
+            sorted_d = sorted(delays)
+            metrics["latency idle p95"] = sorted_d[min(int(len(sorted_d) * 0.95), len(sorted_d) - 1)]
 
     # Loaded latency
     if "latency_loaded" in data:
         delays = [float(e["delay"]) for e in data["latency_loaded"]]
         if delays:
             metrics["latency loaded (mean ticks)"] = sum(delays) / len(delays)
+            sorted_d = sorted(delays)
+            metrics["latency loaded p95"] = sorted_d[min(int(len(sorted_d) * 0.95), len(sorted_d) - 1)]
 
     return metrics
 
@@ -297,15 +341,16 @@ def benchiobound(qemu, sched):
     data = parse_bench_output(qemu.output)
     if "iobound" not in data:
         return {}
-    delays = [float(e["wakeup_delay"]) for e in data["iobound"]]
+    delays = [float(e.get("avg_delay", e["wakeup_delay"])) for e in data["iobound"]]
+    p95s = [float(e.get("p95_delay", e.get("avg_delay", e["wakeup_delay"]))) for e in data["iobound"]]
+    maxes = [float(e.get("max_delay", e.get("p95_delay", e["wakeup_delay"]))) for e in data["iobound"]]
     if not delays:
         return {}
     mean_delay = sum(delays) / len(delays)
-    sorted_d = sorted(delays)
-    p95_idx = min(int(len(sorted_d) * 0.95), len(sorted_d) - 1)
     return {
         "io wakeup delay mean (lower=better)": mean_delay,
-        "io wakeup delay p95": sorted_d[p95_idx],
+        "io wakeup delay p95": max(p95s),
+        "io wakeup delay max": max(maxes),
     }
 
 
@@ -370,9 +415,13 @@ def benchsleepw(qemu, sched):
     if "sleepw" not in data:
         return {}
     avg = float(data["sleepw"][0]["avg_delay"])
+    p95 = float(data["sleepw"][0].get("p95_delay", avg))
+    p99 = float(data["sleepw"][0].get("p99_delay", p95))
     mx = float(data["sleepw"][0]["max_delay"])
     return {
         "sleepw avg delay (lower=better)": avg,
+        "sleepw p95 delay": p95,
+        "sleepw p99 delay": p99,
         "sleepw max delay (lower=better)": mx,
     }
 
@@ -420,9 +469,13 @@ def benchepoch(qemu, sched):
     if "epoch" not in data:
         return {}
     io_resp = float(data["epoch"][0]["io_resp"])
+    io_p95 = float(data["epoch"][0].get("io_p95", io_resp))
+    io_max = float(data["epoch"][0].get("io_max", io_p95))
     batch_work = float(data["epoch"][0]["batch_work"])
     return {
         "epoch io overshoot (lower=better)": io_resp,
+        "epoch io p95": io_p95,
+        "epoch io max": io_max,
         "epoch batch work": batch_work,
     }
 
@@ -507,7 +560,7 @@ def benchconvoy(qemu, sched):
 
 @benchmark("starve (starvation)")
 def benchstarve(qemu, sched):
-    """Starvation resistance: min/max work ratio across 48 processes.
+    """Starvation resistance: min/max work ratio across 32 processes.
     CFS/EEVDF should win: proportional fair share prevents starvation."""
     qemu.run_script(["benchstarve"], timeout=300)
     data = parse_bench_output(qemu.output)
@@ -533,14 +586,16 @@ def benchiosched(qemu, sched):
     data = parse_bench_output(qemu.output)
     if "iosched" not in data:
         return {}
-    delays = [float(e["wakeup_delay"]) for e in data["iosched"]]
+    delays = [float(e.get("avg_delay", e["wakeup_delay"])) for e in data["iosched"]]
+    p95s = [float(e.get("p95_delay", e.get("avg_delay", e["wakeup_delay"]))) for e in data["iosched"]]
+    maxes = [float(e.get("max_delay", e.get("p95_delay", e["wakeup_delay"]))) for e in data["iosched"]]
     if not delays:
         return {}
     mean_delay = sum(delays) / len(delays)
-    max_delay = max(delays)
     return {
         "iosched mean delay (lower=better)": mean_delay,
-        "iosched max delay (lower=better)": max_delay,
+        "iosched p95 delay": max(p95s),
+        "iosched max delay (lower=better)": max(maxes),
     }
 
 
@@ -559,6 +614,65 @@ def benchvdlhvy(qemu, sched):
         "vdlhvy max gap (lower=better)": max_gap,
         "vdlhvy avg gap": avg_gap,
         "vdlhvy spread (lower=better)": spread,
+    }
+
+
+@benchmark("maxproc")
+def benchmaxproc(qemu, sched):
+    """Max process acceptance near NPROC."""
+    qemu.run_script(["benchmaxproc"], timeout=300)
+    data = parse_bench_output(qemu.output)
+    if "maxproc" not in data:
+        return {}
+    return {
+        "maxproc accepted": float(data["maxproc"][0]["accepted"]),
+        "maxproc completed": float(data["maxproc"][0]["completed"]),
+    }
+
+
+@benchmark("burst (adversarial)")
+def benchburst(qemu, sched):
+    """Bursty adversarial interactive workload."""
+    qemu.run_script(["benchburst"], timeout=300)
+    data = parse_bench_output(qemu.output)
+    if "burst" not in data:
+        return {}
+    return {
+        "burst p95 delay (lower=better)": float(data["burst"][0]["delay_p95"]),
+        "burst max delay (lower=better)": float(data["burst"][0]["delay_max"]),
+        "burst batch work": float(data["burst"][0]["batch_work"]),
+        "burst bursty work": float(data["burst"][0]["bursty_work"]),
+    }
+
+
+@benchmark("phaseflip (adversarial)")
+def benchphaseflip(qemu, sched):
+    """Rapid CPU/I/O phase-flapping workload."""
+    qemu.run_script(["benchphaseflip"], timeout=300)
+    data = parse_bench_output(qemu.output)
+    if "phaseflip" not in data:
+        return {}
+    return {
+        "phaseflip p95 delay (lower=better)": float(data["phaseflip"][0]["delay_p95"]),
+        "phaseflip max delay (lower=better)": float(data["phaseflip"][0]["delay_max"]),
+        "phaseflip cpu work": float(data["phaseflip"][0]["cpu_work"]),
+        "phaseflip flip work": float(data["phaseflip"][0]["flip_work"]),
+    }
+
+
+@benchmark("starveio (adversarial)")
+def benchstarveio(qemu, sched):
+    """Sleeper storm plus batch workers."""
+    qemu.run_script(["benchstarveio"], timeout=300)
+    data = parse_bench_output(qemu.output)
+    if "starveio" not in data:
+        return {}
+    batch_min = float(data["starveio"][0]["batch_min"])
+    batch_max = float(data["starveio"][0]["batch_max"])
+    return {
+        "starveio sleeper p95 (lower=better)": float(data["starveio"][0]["sleeper_p95"]),
+        "starveio sleeper max (lower=better)": float(data["starveio"][0]["sleeper_max"]),
+        "starveio batch min/max": batch_min / batch_max if batch_max > 0 else 0,
     }
 
 

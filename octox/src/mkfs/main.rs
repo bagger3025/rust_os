@@ -300,7 +300,7 @@ fn main() -> std::io::Result<()> {
             .to_str()
             .unwrap()
             .trim_start_matches("_");
-        assert!(shortname.len() < 14);
+        assert!(shortname.len() <= 14);
         let parent_ino = path.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()).map(|parent_name| match parent_name {
             "bin" if shortname.contains("init") => rootino,
             "bin" => binino,

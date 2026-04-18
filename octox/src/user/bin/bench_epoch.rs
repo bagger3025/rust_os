@@ -11,6 +11,8 @@ use ulib::{print, println, sys};
 ///
 /// Output:
 ///   BENCH:epoch:io_resp=<N>    — total wakeup overshoot across interactive tasks
+///   BENCH:epoch:io_p95=<N>     — worst per-child p95 wakeup overshoot
+///   BENCH:epoch:io_max=<N>     — worst per-child max wakeup overshoot
 ///   BENCH:epoch:batch_work=<N> — total work completed by batch tasks
 fn main() {
     let num_batch: usize = 4;
@@ -45,26 +47,45 @@ fn main() {
         let pid = sys::fork().unwrap();
         if pid == 0 {
             let mut total_overshoot: usize = 0;
-            for _ in 0..io_cycles {
+            let mut max_overshoot: usize = 0;
+            let mut delays: [usize; 25] = [0; 25];
+            for i in 0..io_cycles {
                 let before = sys::uptime().unwrap();
                 sys::sleep(sleep_per_cycle).unwrap();
                 let after = sys::uptime().unwrap();
                 let actual = after - before;
                 if actual > sleep_per_cycle {
-                    total_overshoot += actual - sleep_per_cycle;
+                    let delay = actual - sleep_per_cycle;
+                    delays[i] = delay;
+                    total_overshoot += delay;
+                    if delay > max_overshoot {
+                        max_overshoot = delay;
+                    }
                 }
 
                 if sys::uptime().unwrap() - t_start >= duration {
                     break;
                 }
             }
-            // Exit with total wakeup overshoot.
-            sys::exit(total_overshoot as i32);
+            for i in 1..io_cycles {
+                let mut j = i;
+                while j > 0 && delays[j - 1] > delays[j] {
+                    delays.swap(j - 1, j);
+                    j -= 1;
+                }
+            }
+            let p95 = delays[(io_cycles * 95 / 100).min(io_cycles - 1)];
+            let code = ((total_overshoot.min(0x3FF) & 0x3FF) << 14)
+                | ((p95.min(0x7F) & 0x7F) << 7)
+                | (max_overshoot.min(0x7F) & 0x7F);
+            sys::exit(code as i32);
         }
     }
 
     // Collect results — use PIDs to categorize.
     let mut total_io_overshoot: usize = 0;
+    let mut worst_p95: usize = 0;
+    let mut worst_max: usize = 0;
     let mut io_collected: usize = 0;
     let mut total_batch_work: usize = 0;
     let mut status: i32 = 0;
@@ -75,13 +96,23 @@ fn main() {
         if is_batch {
             total_batch_work += status as usize * 1000;
         } else {
-            total_io_overshoot += status as usize;
+            let code = status as usize;
+            let total = (code >> 14) & 0x3FF;
+            let p95 = (code >> 7) & 0x7F;
+            let mx = code & 0x7F;
+            total_io_overshoot += total;
+            if p95 > worst_p95 {
+                worst_p95 = p95;
+            }
+            if mx > worst_max {
+                worst_max = mx;
+            }
             io_collected += 1;
         }
     }
 
     println!(
-        "BENCH:epoch:io_resp={}:batch_work={}",
-        total_io_overshoot, total_batch_work
+        "BENCH:epoch:io_resp={}:io_p95={}:io_max={}:batch_work={}",
+        total_io_overshoot, worst_p95, worst_max, total_batch_work
     );
 }
