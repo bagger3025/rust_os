@@ -10,8 +10,8 @@ use ulib::{print, println, sys};
 /// quickly the scheduler dispatches an interactive process after it wakes.
 ///
 /// Output:
-///   BENCH:epoch:io_resp=<N>    — total wakeup overshoot across interactive tasks
-///   BENCH:epoch:io_p95=<N>     — worst per-child p95 wakeup overshoot
+///   BENCH:epoch:io_resp=<N>    — total wakeup overshoot across interactive
+/// tasks   BENCH:epoch:io_p95=<N>     — worst per-child p95 wakeup overshoot
 ///   BENCH:epoch:io_max=<N>     — worst per-child max wakeup overshoot
 ///   BENCH:epoch:batch_work=<N> — total work completed by batch tasks
 fn main() {

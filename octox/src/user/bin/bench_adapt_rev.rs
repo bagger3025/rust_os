@@ -74,8 +74,8 @@ fn main() {
 
             // High 7 bits carry bounded phase-1 delay; low 24 bits carry work.
             // Keep bit 31 clear so the exit status remains positive.
-            let code = ((phase1_delay.min(0x7F) & 0x7F) << 24)
-                | ((phase2_count / 1000) & 0x00FF_FFFF);
+            let code =
+                ((phase1_delay.min(0x7F) & 0x7F) << 24) | ((phase2_count / 1000) & 0x00FF_FFFF);
             sys::exit(code as i32);
         }
     }

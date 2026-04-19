@@ -8,7 +8,8 @@ use ulib::{print, println, sys};
 /// and then perform variable CPU bursts. Some bursts are intentionally long,
 /// testing whether interactive treatment can be abused.
 ///
-/// Output: BENCH:burst:delay_p95=<N>:delay_max=<N>:batch_work=<N>:bursty_work=<N>
+/// Output: BENCH:burst:delay_p95=<N>:delay_max=<N>:batch_work=<N>:
+/// bursty_work=<N>
 fn main() {
     let num_batch: usize = 24;
     let num_bursty: usize = 16;

@@ -12,6 +12,7 @@ use alloc::sync::Arc;
 use core::sync::atomic::{AtomicU64, Ordering};
 use kernel::{
     param::NPROC,
+    prng::XorShift64,
     proc::{ProcState, CPUS, PROCS},
     riscv::intr_on,
     swtch::swtch,
@@ -46,7 +47,7 @@ pub struct Drl {
     epoch_max_wait: u64,
     epoch_dispatch_mask: u64,
     prev_reward: i64,
-    rng: u64,
+    rng: XorShift64,
     scan_offset: usize,
 }
 
@@ -79,7 +80,7 @@ impl Default for Drl {
             epoch_max_wait: 0,
             epoch_dispatch_mask: 0,
             prev_reward: 0,
-            rng: seed.max(1),
+            rng: XorShift64::new(seed),
             scan_offset: 0,
         }
     }
@@ -87,18 +88,8 @@ impl Default for Drl {
 
 impl Drl {
     #[inline]
-    fn xorshift(&mut self) -> u64 {
-        let mut x = self.rng;
-        x ^= x << 13;
-        x ^= x >> 7;
-        x ^= x << 17;
-        self.rng = x.max(1);
-        self.rng
-    }
-
-    #[inline]
     fn rand_perturb(&mut self) -> i64 {
-        (self.xorshift() % (PERTURB_MAG as u64 * 2 + 1)) as i64 - PERTURB_MAG
+        self.rng.next_i64_inclusive(-PERTURB_MAG, PERTURB_MAG)
     }
 
     fn forward(&self, f: &[i64; NUM_FEATURES]) -> i64 {

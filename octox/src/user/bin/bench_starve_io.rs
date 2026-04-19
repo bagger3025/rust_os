@@ -7,7 +7,8 @@ use ulib::{print, println, sys};
 /// 40 frequent sleepers compete with 8 CPU-bound batch workers. This catches
 /// schedulers that reduce sleeper latency by starving batch work.
 ///
-/// Output: BENCH:starveio:sleeper_p95=<N>:sleeper_max=<N>:batch_min=<N>:batch_max=<N>
+/// Output: BENCH:starveio:sleeper_p95=<N>:sleeper_max=<N>:batch_min=<N>:
+/// batch_max=<N>
 fn main() {
     let num_sleepers: usize = 40;
     let num_batch: usize = 8;

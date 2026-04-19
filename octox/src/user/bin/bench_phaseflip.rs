@@ -7,7 +7,8 @@ use ulib::{print, println, sys};
 /// 16 stable CPU workers run beside 16 flapping workers. Flappers alternate
 /// every 10 ticks between I/O-like sleep/wakeup behavior and CPU-heavy work.
 ///
-/// Output: BENCH:phaseflip:delay_p95=<N>:delay_max=<N>:cpu_work=<N>:flip_work=<N>
+/// Output: BENCH:phaseflip:delay_p95=<N>:delay_max=<N>:cpu_work=<N>:
+/// flip_work=<N>
 fn main() {
     let num_cpu: usize = 16;
     let num_flip: usize = 16;

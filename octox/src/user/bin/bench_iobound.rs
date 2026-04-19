@@ -6,7 +6,8 @@ use ulib::{print, println, sys};
 /// Mixes CPU-bound and I/O-bound (sleeping) processes.
 /// I/O children accumulate total wakeup delay and exit with it.
 /// Parent collects and prints results sequentially.
-/// Output: BENCH:iobound:pid=<P>:wakeup_delay=<D>:avg_delay=<A>:p95_delay=<P95>:max_delay=<M>
+/// Output: BENCH:iobound:pid=<P>:wakeup_delay=<D>:avg_delay=<A>:
+/// p95_delay=<P95>:max_delay=<M>
 fn main() {
     let num_cpu: usize = 3;
     let num_io: usize = 3;

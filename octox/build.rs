@@ -62,7 +62,9 @@ fn build_uprogs(out_dir: &Path) -> (PathBuf, Vec<PathBuf>) {
     if status.success() {
         let mut ufiles: Vec<PathBuf> = Vec::new();
         let mut collet_files = |dir: &Path, prefix: Option<&str>| {
-            let Ok(entries) = fs::read_dir(dir) else { return };
+            let Ok(entries) = fs::read_dir(dir) else {
+                return;
+            };
             for entry in entries.filter_map(Result::ok) {
                 let path = entry.path();
                 if path.is_file() {
@@ -91,7 +93,9 @@ fn build_uprogs(out_dir: &Path) -> (PathBuf, Vec<PathBuf>) {
 
 fn print_rerun_if_changed_recursive(path: &Path) {
     println!("cargo:rerun-if-changed={}", path.display());
-    let Ok(entries) = fs::read_dir(path) else { return };
+    let Ok(entries) = fs::read_dir(path) else {
+        return;
+    };
     for entry in entries.filter_map(Result::ok) {
         let path = entry.path();
         if path.is_dir() {

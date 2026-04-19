@@ -28,6 +28,8 @@ pub mod mpmc;
 pub mod null;
 pub mod param;
 #[cfg(all(target_os = "none", feature = "kernel"))]
+pub mod prng;
+#[cfg(all(target_os = "none", feature = "kernel"))]
 pub mod proc;
 #[cfg(all(target_os = "none", feature = "kernel"))]
 pub mod semaphore;

@@ -13,7 +13,8 @@ use ulib::{print, println, sys};
 /// to run. The scheduler's wakeup/preemption mechanism is the sole
 /// path to low latency.
 ///
-/// Output: BENCH:iosched:pid=<P>:wakeup_delay=<D>:avg_delay=<A>:p95_delay=<P95>:max_delay=<M>
+/// Output: BENCH:iosched:pid=<P>:wakeup_delay=<D>:avg_delay=<A>:
+/// p95_delay=<P95>:max_delay=<M>
 fn main() {
     let num_cpu: usize = 40;
     let num_io: usize = 8;

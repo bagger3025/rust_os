@@ -196,25 +196,24 @@ fn bfree(dev: u32, b: u32) {
 // The inode and its in-memory representation go through the following
 // sequence of states before being used by the file system code.
 //
-// * Allocation: alloc() allocates an inode if inode's type (on disk)
-//   is non-zero. put() frees if the Arc::strong_count<Arc<MInode>>
-//   have fallen to 2 and link counts have fallen to zero.
+// * Allocation: alloc() allocates an inode if inode's type (on disk) is
+//   non-zero. put() frees if the Arc::strong_count<Arc<MInode>> have fallen to
+//   2 and link counts have fallen to zero.
 //
-// * Referencing in table: an entry in the inode table
-//   is free if Arc::strong_count(&Arc<MInode>) is 2(what is in the
-//   table and what is being processed at the time). Otherwise Arc
-//   count tracks the number of in-memory pointers to the entry (open
-//   files and current directories). get() finds or creates a table
-//   entry and increments its Arc count; put() consume Arc<MInode>.
+// * Referencing in table: an entry in the inode table is free if
+//   Arc::strong_count(&Arc<MInode>) is 2(what is in the table and what is being
+//   processed at the time). Otherwise Arc count tracks the number of in-memory
+//   pointers to the entry (open files and current directories). get() finds or
+//   creates a table entry and increments its Arc count; put() consume
+//   Arc<MInode>.
 //
-// * Valid: the type and size in an inode table entry is only correct
-//   when ip.valid is true. MInode.lock() reads the inode from the
-//   disk and sets valid, when put() clears valid if
-//   Arc::strong_count(&Arc<MInode>) has fallen to 2.
+// * Valid: the type and size in an inode table entry is only correct when
+//   ip.valid is true. MInode.lock() reads the inode from the disk and sets
+//   valid, when put() clears valid if Arc::strong_count(&Arc<MInode>) has
+//   fallen to 2.
 //
-// * Locked: file system code may only examine and modify the
-//   information in an inode and its property if it has first locked
-//   the inode.
+// * Locked: file system code may only examine and modify the information in an
+//   inode and its property if it has first locked the inode.
 //
 // Thus a typical sequence is:
 //   ip = ITABLE.get(dev, inum);  // get inode
@@ -302,32 +301,37 @@ impl IData {
         self.major
     }
 
-    // inode is write through, so change about MInode is also must be written into disk
+    // inode is write through, so change about MInode is also must be written into
+    // disk
     fn set_type(&mut self, itype: FileType) {
         self.itype = itype;
         self.update();
     }
 
-    // inode is write through, so change about MInode is also must be written into disk
+    // inode is write through, so change about MInode is also must be written into
+    // disk
     fn set_major_minor(&mut self, major: Major, minor: u16) {
         self.major = major;
         self.minor = minor;
         self.update();
     }
 
-    // inode is write through, so change about MInode is also must be written into disk
+    // inode is write through, so change about MInode is also must be written into
+    // disk
     fn set_size(&mut self, size: u32) {
         self.size = size;
         self.update();
     }
 
-    // inode is write through, so change about MInode is also must be written into disk
+    // inode is write through, so change about MInode is also must be written into
+    // disk
     fn set_addrs(&mut self, bn: usize, addr: u32) {
         self.addrs[bn] = addr;
         self.update();
     }
 
-    // inode is write through, so change about MInode is also must be written into disk.
+    // inode is write through, so change about MInode is also must be written into
+    // disk.
     fn set_nlink(&mut self, op: LinkOp) {
         match op {
             LinkOp::Plus => self.nlink += 1,
@@ -790,8 +794,8 @@ impl ITable {
         let mut guard = self.lock();
 
         if Arc::strong_count(&inode) == 2 {
-            // Arc::strong_count(inode) == 2 means no other process can have inode sleeplocked,
-            // so this sleeplock won't block (or dead lock).
+            // Arc::strong_count(inode) == 2 means no other process can have inode
+            // sleeplocked, so this sleeplock won't block (or dead lock).
             let mut idata = inode.data.lock();
             let itable = Mutex::unlock(guard);
 
