@@ -16,6 +16,13 @@ from octoxtest import (
     parse_bench_output, assert_lines_match,
 )
 
+
+def metric_value(entry, *keys):
+    for key in keys:
+        if key in entry:
+            return entry[key]
+    raise KeyError(keys[0])
+
 # ====================================================================
 #  Correctness Tests
 # ====================================================================
@@ -273,6 +280,15 @@ def test_starveio(qemu):
     assert int(data["starveio"][0]["batch_max"]) > 0, "starveio batch_max must be > 0"
 
 
+@test(5, "mixed-class hybrid workload")
+def test_mixedclass(qemu):
+    """benchmixclass: mixed interactive/periodic/batch/bursty workload completes."""
+    qemu.run_script(["benchmixclass"], timeout=300)
+    data = parse_bench_output(qemu.output)
+    assert "mixedclass" in data, "No BENCH:mixedclass output found"
+    assert int(data["mixedclass"][0]["batch_work"]) > 0, "mixedclass batch_work must be > 0"
+
+
 # ====================================================================
 #  Benchmarks
 # ====================================================================
@@ -319,17 +335,17 @@ def benchlatency(qemu, sched):
     if "latency" in data:
         delays = [float(e["delay"]) for e in data["latency"]]
         if delays:
-            metrics["latency idle (mean ticks)"] = sum(delays) / len(delays)
+            metrics["latency idle mean ticks (lower=better)"] = sum(delays) / len(delays)
             sorted_d = sorted(delays)
-            metrics["latency idle p95"] = sorted_d[min(int(len(sorted_d) * 0.95), len(sorted_d) - 1)]
+            metrics["latency idle p95 (lower=better)"] = sorted_d[min(int(len(sorted_d) * 0.95), len(sorted_d) - 1)]
 
     # Loaded latency
     if "latency_loaded" in data:
         delays = [float(e["delay"]) for e in data["latency_loaded"]]
         if delays:
-            metrics["latency loaded (mean ticks)"] = sum(delays) / len(delays)
+            metrics["latency loaded mean ticks (lower=better)"] = sum(delays) / len(delays)
             sorted_d = sorted(delays)
-            metrics["latency loaded p95"] = sorted_d[min(int(len(sorted_d) * 0.95), len(sorted_d) - 1)]
+            metrics["latency loaded p95 (lower=better)"] = sorted_d[min(int(len(sorted_d) * 0.95), len(sorted_d) - 1)]
 
     return metrics
 
@@ -341,16 +357,16 @@ def benchiobound(qemu, sched):
     data = parse_bench_output(qemu.output)
     if "iobound" not in data:
         return {}
-    delays = [float(e.get("avg_delay", e["wakeup_delay"])) for e in data["iobound"]]
-    p95s = [float(e.get("p95_delay", e.get("avg_delay", e["wakeup_delay"]))) for e in data["iobound"]]
-    maxes = [float(e.get("max_delay", e.get("p95_delay", e["wakeup_delay"]))) for e in data["iobound"]]
+    delays = [float(metric_value(e, "avg_delay", "wakeup_delay")) for e in data["iobound"]]
+    p95s = [float(metric_value(e, "p95_delay", "avg_delay", "wakeup_delay")) for e in data["iobound"]]
+    maxes = [float(metric_value(e, "max_delay", "p95_delay", "wakeup_delay")) for e in data["iobound"]]
     if not delays:
         return {}
     mean_delay = sum(delays) / len(delays)
     return {
         "io wakeup delay mean (lower=better)": mean_delay,
-        "io wakeup delay p95": max(p95s),
-        "io wakeup delay max": max(maxes),
+        "io wakeup delay p95 (lower=better)": max(p95s),
+        "io wakeup delay max (lower=better)": max(maxes),
     }
 
 
@@ -420,8 +436,8 @@ def benchsleepw(qemu, sched):
     mx = float(data["sleepw"][0]["max_delay"])
     return {
         "sleepw avg delay (lower=better)": avg,
-        "sleepw p95 delay": p95,
-        "sleepw p99 delay": p99,
+        "sleepw p95 delay (lower=better)": p95,
+        "sleepw p99 delay (lower=better)": p99,
         "sleepw max delay (lower=better)": mx,
     }
 
@@ -455,7 +471,7 @@ def benchvdl(qemu, sched):
     spread = float(data["vdl"][0]["spread"]) / 100.0
     return {
         "vdl max gap (lower=better)": max_gap,
-        "vdl avg gap": avg_gap,
+        "vdl avg gap (lower=better)": avg_gap,
         "vdl spread (lower=better)": spread,
     }
 
@@ -474,8 +490,8 @@ def benchepoch(qemu, sched):
     batch_work = float(data["epoch"][0]["batch_work"])
     return {
         "epoch io overshoot (lower=better)": io_resp,
-        "epoch io p95": io_p95,
-        "epoch io max": io_max,
+        "epoch io p95 (lower=better)": io_p95,
+        "epoch io max (lower=better)": io_max,
         "epoch batch work": batch_work,
     }
 
@@ -586,15 +602,15 @@ def benchiosched(qemu, sched):
     data = parse_bench_output(qemu.output)
     if "iosched" not in data:
         return {}
-    delays = [float(e.get("avg_delay", e["wakeup_delay"])) for e in data["iosched"]]
-    p95s = [float(e.get("p95_delay", e.get("avg_delay", e["wakeup_delay"]))) for e in data["iosched"]]
-    maxes = [float(e.get("max_delay", e.get("p95_delay", e["wakeup_delay"]))) for e in data["iosched"]]
+    delays = [float(metric_value(e, "avg_delay", "wakeup_delay")) for e in data["iosched"]]
+    p95s = [float(metric_value(e, "p95_delay", "avg_delay", "wakeup_delay")) for e in data["iosched"]]
+    maxes = [float(metric_value(e, "max_delay", "p95_delay", "wakeup_delay")) for e in data["iosched"]]
     if not delays:
         return {}
     mean_delay = sum(delays) / len(delays)
     return {
         "iosched mean delay (lower=better)": mean_delay,
-        "iosched p95 delay": max(p95s),
+        "iosched p95 delay (lower=better)": max(p95s),
         "iosched max delay (lower=better)": max(maxes),
     }
 
@@ -612,7 +628,7 @@ def benchvdlhvy(qemu, sched):
     spread = float(data["vdlhvy"][0]["spread"]) / 100.0
     return {
         "vdlhvy max gap (lower=better)": max_gap,
-        "vdlhvy avg gap": avg_gap,
+        "vdlhvy avg gap (lower=better)": avg_gap,
         "vdlhvy spread (lower=better)": spread,
     }
 
@@ -673,6 +689,29 @@ def benchstarveio(qemu, sched):
         "starveio sleeper p95 (lower=better)": float(data["starveio"][0]["sleeper_p95"]),
         "starveio sleeper max (lower=better)": float(data["starveio"][0]["sleeper_max"]),
         "starveio batch min/max": batch_min / batch_max if batch_max > 0 else 0,
+    }
+
+
+@benchmark("mixedclass (hybrid)")
+def benchmixedclass(qemu, sched):
+    """Mixed interactive, periodic, batch, and bursty task classes."""
+    qemu.run_script(["benchmixclass"], timeout=300)
+    data = parse_bench_output(qemu.output)
+    if "mixedclass" not in data:
+        return {}
+    entry = data["mixedclass"][0]
+    batch_min = float(entry["batch_min"])
+    batch_max = float(entry["batch_max"])
+    return {
+        "mixed interactive p95 (lower=better)": float(entry["interactive_p95"]),
+        "mixed interactive max (lower=better)": float(entry["interactive_max"]),
+        "mixed periodic misses (lower=better)": float(entry["periodic_miss"]),
+        "mixed periodic max lateness (lower=better)": float(entry["periodic_max"]),
+        "mixed batch work": float(entry["batch_work"]),
+        "mixed batch min/max": batch_min / batch_max if batch_max > 0 else 0,
+        "mixed bursty p95 (lower=better)": float(entry["bursty_p95"]),
+        "mixed bursty max (lower=better)": float(entry["bursty_max"]),
+        "mixed bursty work": float(entry["bursty_work"]),
     }
 
 

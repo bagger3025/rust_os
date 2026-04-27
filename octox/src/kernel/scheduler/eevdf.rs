@@ -36,7 +36,7 @@
 //     latency naturally.
 //
 // Adapted for fixed process table and SMP (4 CPUs).
-// With 16 processes a two-pass linear scan replaces the red-black tree
+// With Octox's fixed process table a two-pass linear scan replaces the red-black tree
 // augmented with avg_vruntime that Linux uses.
 //
 // ============================================================================

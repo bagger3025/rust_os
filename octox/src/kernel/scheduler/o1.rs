@@ -15,8 +15,8 @@
 //   time slices.
 //
 //   In Linux, each set was a 140-entry priority bitmap + per-level linked
-//   list, giving O(1) lookup via `find_first_bit()`.  With NPROC=16 the
-//   bitmap is unnecessary — a linear scan is equally fast — but the
+//   list, giving O(1) lookup via `find_first_bit()`.  With Octox's fixed
+//   process table, a linear scan is simpler, but the
 //   active/expired epoch mechanism is faithfully preserved.
 //
 // Priority and time slices:

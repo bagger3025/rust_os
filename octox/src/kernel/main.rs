@@ -21,7 +21,16 @@ use scheduler::o1::O1 as ActiveScheduler;
 use scheduler::eevdf::Eevdf as ActiveScheduler;
 #[cfg(sched_drl)]
 use scheduler::drl::Drl as ActiveScheduler;
-#[cfg(not(any(sched_rr, sched_mlfq, sched_o1, sched_eevdf, sched_drl)))]
+#[cfg(sched_hybrid_drl)]
+use scheduler::hybrid_drl::HybridDrl as ActiveScheduler;
+#[cfg(not(any(
+    sched_rr,
+    sched_mlfq,
+    sched_o1,
+    sched_eevdf,
+    sched_drl,
+    sched_hybrid_drl
+)))]
 use scheduler::cfs::Cfs as ActiveScheduler;
 
 use crate::scheduler::Scheduler;

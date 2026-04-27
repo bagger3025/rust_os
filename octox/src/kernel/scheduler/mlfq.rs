@@ -4,7 +4,7 @@
 //
 // Implements the classic MLFQ algorithm described in OSTEP (Operating Systems:
 // Three Easy Pieces, Chapter 8).  Adapted for fixed process table
-// (NPROC=16), SMP (4 CPUs), and RISC-V timer-driven preemption.
+// (NPROC=64), SMP (4 CPUs), and RISC-V timer-driven preemption.
 //
 // Core rules (from OSTEP):
 //

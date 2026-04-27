@@ -166,6 +166,10 @@ path = "bin/bench_phaseflip.rs"
 name = "_benchstarveio"
 path = "bin/bench_starve_io.rs"
 
+[[bin]]
+name = "_benchmixclass"
+path = "bin/bench_mixed_class.rs"
+
 [dependencies]
 libkernel = { workspace = true }
 

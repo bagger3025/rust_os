@@ -2,6 +2,9 @@ TARGET  := riscv64gc-unknown-none-elf
 PYTHON  := python3
 GRADE   := tests/grade_scheduler.py
 TIMEOUT := 300
+FULL_BENCH_TIMEOUT ?= 1200
+BENCH_RESULTS ?= /tmp/octox_full_bench.json
+BENCH_RELEASE_RESULTS ?= /tmp/octox_full_bench_release.json
 
 # Set RELEASE=1 to build and test with --release (optimized).
 #   make bench RELEASE=1
@@ -28,10 +31,11 @@ QEMUOPTS := -machine virt -bios none -m 524M -smp 4 -nographic \
 
 # ── Build ───────────────────────────────────────────────────────────
 
-.PHONY: all build clean qemu test bench grade \
-	test-cfs test-rr test-mlfq test-o1 test-eevdf test-drl \
-	bench-cfs bench-rr bench-mlfq bench-o1 bench-eevdf bench-drl \
-	grade-cfs grade-rr grade-mlfq grade-o1 grade-eevdf grade-drl
+.PHONY: all build clean qemu test bench bench-release grade \
+	bench-report bench-release-report \
+	test-cfs test-rr test-mlfq test-o1 test-eevdf test-drl test-hybrid-drl \
+	bench-cfs bench-rr bench-mlfq bench-o1 bench-eevdf bench-drl bench-hybrid-drl \
+	grade-cfs grade-rr grade-mlfq grade-o1 grade-eevdf grade-drl grade-hybrid-drl
 
 all: grade
 
@@ -59,6 +63,16 @@ test: build
 bench: build
 	@pkill -9 -f $(QEMU) 2>/dev/null || true
 	$(PYTHON) $(GRADE) --mode bench --scheduler all --timeout $(TIMEOUT) $(GRADE_FLAGS)
+
+bench-release:
+	$(MAKE) bench RELEASE=1
+
+bench-report: build
+	@pkill -9 -f $(QEMU) 2>/dev/null || true
+	$(PYTHON) $(GRADE) --mode bench --scheduler all --timeout $(FULL_BENCH_TIMEOUT) $(GRADE_FLAGS) --results $(BENCH_RESULTS)
+
+bench-release-report:
+	$(MAKE) bench-report RELEASE=1 BENCH_RESULTS=$(BENCH_RELEASE_RESULTS)
 
 # ── Per-scheduler targets ──────────────────────────────────────────
 
@@ -133,3 +147,15 @@ bench-drl: build
 grade-drl: build
 	@pkill -9 -f $(QEMU) 2>/dev/null || true
 	$(PYTHON) $(GRADE) --scheduler drl --timeout $(TIMEOUT) $(GRADE_FLAGS)
+
+test-hybrid-drl: build
+	@pkill -9 -f $(QEMU) 2>/dev/null || true
+	$(PYTHON) $(GRADE) --mode test --scheduler hybrid_drl --timeout $(TIMEOUT) $(GRADE_FLAGS)
+
+bench-hybrid-drl: build
+	@pkill -9 -f $(QEMU) 2>/dev/null || true
+	$(PYTHON) $(GRADE) --mode bench --scheduler hybrid_drl --timeout $(TIMEOUT) $(GRADE_FLAGS)
+
+grade-hybrid-drl: build
+	@pkill -9 -f $(QEMU) 2>/dev/null || true
+	$(PYTHON) $(GRADE) --scheduler hybrid_drl --timeout $(TIMEOUT) $(GRADE_FLAGS)

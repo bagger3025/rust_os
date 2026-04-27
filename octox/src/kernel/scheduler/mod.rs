@@ -1,9 +1,18 @@
-#[cfg(not(any(sched_rr, sched_mlfq, sched_o1, sched_eevdf, sched_drl)))]
+#[cfg(not(any(
+    sched_rr,
+    sched_mlfq,
+    sched_o1,
+    sched_eevdf,
+    sched_drl,
+    sched_hybrid_drl
+)))]
 pub mod cfs;
 #[cfg(sched_drl)]
 pub mod drl;
 #[cfg(sched_eevdf)]
 pub mod eevdf;
+#[cfg(sched_hybrid_drl)]
+pub mod hybrid_drl;
 #[cfg(sched_mlfq)]
 pub mod mlfq;
 #[cfg(sched_o1)]

@@ -3,7 +3,7 @@
 // ============================================================================
 //
 // Modeled after Linux's CFS (introduced by kernel 2.6.23).
-// Adapted for fixed process table (NPROC=16) and RISC-V timer-driven
+// Adapted for fixed process table (NPROC=64) and RISC-V timer-driven
 // preemption model.
 //
 // Core idea: every process accumulates *virtual runtime* (vruntime) as it
@@ -12,7 +12,7 @@
 // the processor over time.
 //
 // Linux uses a red-black tree for O(log n) leftmost extraction. With
-// NPROC=16 a linear scan is equally fast and far simpler, so we use that.
+// fixed NPROC table a linear scan is simple and predictable, so we use that.
 //
 // Key mechanisms:
 //
