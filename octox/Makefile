@@ -31,7 +31,7 @@ QEMUOPTS := -machine virt -bios none -m 524M -smp 4 -nographic \
 
 # ── Build ───────────────────────────────────────────────────────────
 
-.PHONY: all build clean qemu test bench bench-release grade \
+.PHONY: all build clean qemu test bench bench-release grade miri \
 	bench-report bench-release-report \
 	test-cfs test-rr test-mlfq test-o1 test-eevdf test-drl test-hybrid-drl \
 	bench-cfs bench-rr bench-mlfq bench-o1 bench-eevdf bench-drl bench-hybrid-drl \
@@ -44,6 +44,9 @@ build:
 
 clean:
 	rm -rf target
+
+miri:
+	cd tests/miri && cargo +nightly miri test
 
 # ── Run in QEMU (interactive) ──────────────────────────────────────
 
